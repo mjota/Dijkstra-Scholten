@@ -1,4 +1,5 @@
 #!/usr/bin/env python
+# -*- coding: utf-8 -*-
 
 import nodo
 import csv
@@ -27,30 +28,6 @@ class main:
             self.nodes.append(nodo.Nodo(row, s))
             s += 1
 
-        '''
-        self.prueba1.tubes[1].use('0')
-        self.prueba1.tubes[2].watch('1')
-
-        self.prueba2.tubes[1].use('2')
-        self.prueba2.tubes[2].watch('3')
-
-        print self.prueba1.tubes[1].using()
-        print self.prueba1.tubes[2].watching()
-        print self.prueba2.tubes[1].using()
-        print self.prueba2.tubes[2].watching()
-        """
-        self.nodes[0].tubes[1].put('ur')
-        print self.nodes[8].tubes[1] is self.nodes[9].tubes[1]
-        job = self.nodes[1].tubes[1].reserve()
-        print job.body
-        job.delete()
-        print self.nodes[0].tubes[1] is self.nodes[1].tubes[1]
-        #print self.nodes[1].test
-        #print self.nodes[2].test
-        #self.nodes[0].start()
-        """
-        '''
-
     def launch_node(self):
         for node in self.nodes:
             node.start()
@@ -58,8 +35,14 @@ class main:
         for node in self.nodes:
             node.join()
 
+    def close_node(self):
+        for node in self.nodes:
+            node.close_connection()
+
     def test_node(self):
         self.nodes[1].send_message(2, 'Mensaje de prueba-A')
+        self.nodes[0].send_signal(2)
+        self.nodes[2].receive_message()
         self.nodes[2].receive_message()
 
 if __name__ == '__main__':
@@ -67,5 +50,7 @@ if __name__ == '__main__':
     main.open_file()
     main.create_nodes()
     main.test_node()
+
+    main.close_node()
 
 

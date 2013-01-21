@@ -1,3 +1,4 @@
+# -*- coding: utf-8 -*-
 import multiprocessing
 import beanstalkc
 import re
@@ -32,11 +33,18 @@ class Nodo(multiprocessing.Process):
         job = self.tubeme.reserve()
         typ, sender, message = re.split('-', job.body, 2)
         if typ == 'M':
-            print('Message type')
+            print('Message type from ' + sender)
         else:
-            print('Signal type')
-        print sender
+            print('Signal type from ' + sender)
         print message
         job.delete()
 
-    def send_signal
+    def send_signal(self, dest):
+        self.tuberesp.use(str(dest))
+        self.tuberesp.put('S-' + self.name + '-')
+
+    def close_connection(self):
+        self.tubeme.close()
+        self.tuberesp.close()
+        for bean in self.tubes.values():
+            bean.close()
