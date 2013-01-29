@@ -34,6 +34,7 @@ class Nodo(multiprocessing.Process):
         super(Nodo, self).__init__()
         self.tubes = {}
         self.name = str(s)
+        self.worked = 1
 
         self.inDeficitList = [0 for x in range(0, 14)]
         self.inDeficit = 0
@@ -50,53 +51,39 @@ class Nodo(multiprocessing.Process):
             self.tubes[int(n)].use(n)
 
     def run(self):
-        pass
+        while True:
+            if self.receive_message():
+                break
+        print('Fin ' + self.name)
 
-    def make_job(message):
-        print(message)
+    def make_job(self, message):
+        #print(message)
         time.sleep(1)
 
     def send_message(self, dest, message):
-        if(self.parent != -1):
-            self.tubes[dest].put('M-' + self.name + '-' + message)
-            self.outDeficit += 1
+        self.tubes[dest].put('M-' + self.name + '-' + message)
 
     def receive_message(self):
-        job = self.tubeme.reserve()
+        job = self.tubeme.reserve(timeout=10)
+        if job is None:
+            return 1
         typ, sender, message = re.split('-', job.body, 2)
         if typ == 'M':
-            print('Message type from ' + sender)
-            if(self.parent == -1):
-                self.parent = int(sender)
-            self.inDeficit += 1
-            self.inDeficitList[int(sender)] += 1
+            print('Mensaje de ' + sender + ' para ' + self.name)
+            if self.worked:
+                for key in self.tubes.keys():
+                    self.send_message(key, message)
+            self.worked = 0
             self.make_job(message)
-            self.send_signal()
+            self.send_signal(int(sender))
         else:
-            print('Signal type from ' + sender)
-            self.outDeficit -= 1
+            print('Signal de ' + sender + ' a ' + self.name)
 
         job.delete()
 
-    def send_signal(self):
-        if (self.inDeficit > 1):
-            n = 0
-            for e in self.inDeficitList:
-                if (e > 1 or (e == 1 and n != self.parent)):
-                    break
-                n += 1
-            self.tuberesp.use(n)
-            self.tuberesp.put('S-' + self.name + '-')
-
-            self.inDeficitList[n] -= 1
-            self.inDeficit -= 1
-        elif (self.inDeficit == 1 and self.outDeficit == 0):
-            self.tuberesp.use(self.parent)
-            self.tuberesp.put('S-' + self.name + '-')
-
-            self.inDeficitList[self.parent] = 0
-            self.inDeficit = 0
-            self.parent = -1
+    def send_signal(self, n):
+        self.tuberesp.use(n)
+        self.tuberesp.put('S-' + self.name + '-')
 
     def close_connection(self):
         self.tubeme.close()

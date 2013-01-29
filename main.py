@@ -20,7 +20,7 @@
 #==============================================================================
 #
 
-import nodo
+import nodo1
 import csv
 import sys
 #import pydot
@@ -44,10 +44,11 @@ class main:
     def create_nodes(self):
         s = 0
         for row in self.fileC:
-            self.nodes.append(nodo.Nodo(row, s))
+            self.nodes.append(nodo1.Nodo(row, s))
             s += 1
+        self.node_init = nodo1.Nodo([0], 100)
 
-    def launch_node(self):
+    def launch_nodes(self):
         for node in self.nodes:
             node.start()
 
@@ -59,16 +60,18 @@ class main:
             node.close_connection()
 
     def test_node(self):
-        self.nodes[1].send_message(2, 'Mensaje de prueba-A')
-        self.nodes[0].send_signal(2)
-        self.nodes[2].receive_message()
-        self.nodes[2].receive_message()
+        self.node_init.send_message(0, 'Mensaje de prueba')
+        #self.nodes[0].send_signal()
+        #self.nodes[2].receive_message()
+        #self.nodes[0].receive_message()
+        #self.nodes[2].receive_message()
 
 if __name__ == '__main__':
     main = main()
     main.open_file()
     main.create_nodes()
     main.test_node()
+    main.launch_nodes()
 
     main.close_node()
 
