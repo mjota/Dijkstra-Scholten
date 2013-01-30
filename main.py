@@ -20,7 +20,7 @@
 #==============================================================================
 #
 
-import nodo1
+import nodo
 import csv
 import sys
 #import pydot
@@ -44,9 +44,9 @@ class main:
     def create_nodes(self):
         s = 0
         for row in self.fileC:
-            self.nodes.append(nodo1.Nodo(row, s))
+            self.nodes.append(nodo.Nodo(row, s))
             s += 1
-        self.node_init = nodo1.Nodo([0], 100)
+        self.node_init = nodo.Nodo([0], 0)
 
     def launch_nodes(self):
         for node in self.nodes:
@@ -60,6 +60,7 @@ class main:
             node.close_connection()
 
     def test_node(self):
+        self.node_init.parent = 101
         self.node_init.send_message(0, 'Mensaje de prueba')
         #self.nodes[0].send_signal()
         #self.nodes[2].receive_message()
