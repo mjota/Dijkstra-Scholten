@@ -29,9 +29,10 @@ class Nodo(multiprocessing.Process):
 
     ip = 'localhost'
     port = 11300
+    maplist = {}
 
     def __init__(self, row, s):
-        super(Nodo, self).__init__()
+        multiprocessing.Process.__init__(self)
         self.tubes = {}
         self.name = str(s)
         self.worked = 1
@@ -58,19 +59,22 @@ class Nodo(multiprocessing.Process):
                 break
         print('Fin ' + self.name)
 
+        self.worked = 1
+        self.completed = 0
+
     def make_job(self, message):
         #print(message)
         time.sleep(1)
 
     def send_message(self, dest, message):
-        if(self.parent != -1):
+        if(self.parent != -1 or self.name == '0'):
             self.tubes[dest].put('M-' + self.name + '-' + message)
             self.outDeficit += 1
 
     def receive_message(self):
-        job = self.tubeme.reserve(timeout=5)
+        job = self.tubeme.reserve(timeout=1)
         if job is None:
-            self.send_signal()
+            self.send_signal(1)
             return
         typ, sender, message = re.split('-', job.body, 2)
         if typ == 'M':
@@ -78,8 +82,8 @@ class Nodo(multiprocessing.Process):
 
             if(self.parent == -1):
                 self.parent = int(sender)
+                self.maplist[int(self.name)] = self.parent
             self.inDeficit += 1
-            print('De ' + self.name + ' Deficit: ' + str(self.inDeficit))
             self.inDeficitList[int(sender)] += 1
 
             if self.worked:
@@ -95,8 +99,8 @@ class Nodo(multiprocessing.Process):
 
         job.delete()
 
-    def send_signal(self):
-        if (self.inDeficit > 1):
+    def send_signal(self, *last):
+        if (self.inDeficit > 1 and not last):
             n = 0
             for e in self.inDeficitList:
                 if (e > 1 or (e == 1 and n != self.parent)):

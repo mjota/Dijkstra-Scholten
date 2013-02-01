@@ -46,32 +46,28 @@ class main:
         for row in self.fileC:
             self.nodes.append(nodo.Nodo(row, s))
             s += 1
-        self.node_init = nodo.Nodo([0], 0)
+        self.message_init = nodo.Nodo([0], 0)
 
     def launch_nodes(self):
+        self.message_init.send_message(0, 'Mensaje de prueba')
         for node in self.nodes:
             node.start()
 
         for node in self.nodes:
             node.join()
+        self.nodes[0].receive_message()
+
+    def make_maplist():
+        pass
 
     def close_node(self):
         for node in self.nodes:
             node.close_connection()
 
-    def test_node(self):
-        self.node_init.parent = 101
-        self.node_init.send_message(0, 'Mensaje de prueba')
-        #self.nodes[0].send_signal()
-        #self.nodes[2].receive_message()
-        #self.nodes[0].receive_message()
-        #self.nodes[2].receive_message()
-
 if __name__ == '__main__':
     main = main()
     main.open_file()
     main.create_nodes()
-    main.test_node()
     main.launch_nodes()
 
     main.close_node()
