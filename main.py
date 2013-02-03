@@ -21,8 +21,11 @@
 #
 
 import nodo
+import environment_node
 import csv
 import sys
+import re
+#import dot_parser
 #import pydot
 
 
@@ -39,28 +42,34 @@ class main:
         except:
             print("Introduce nombre de fichero")
         else:
-            self.fileC = csv.reader(fileR, delimiter=',')
+            if re.match(".*(\.csv)$", sys.argv[1]):
+                self.fileC = csv.reader(fileR, delimiter=',')
+            elif re.match(".*(\.dot)$", sys.argv[1]):
+                print('Es dot')
+            else:
+                print('Extensión de fichero no válida')
 
     def create_nodes(self):
         s = 0
         for row in self.fileC:
-            self.nodes.append(nodo.Nodo(row, s))
+            if s == 0:
+                self.nodes.append(environment_node.EnvironmentNode(row, s))
+            else:
+                self.nodes.append(nodo.Nodo(row, s))
             s += 1
-        self.message_init = nodo.Nodo([0], 0)
 
     def launch_nodes(self):
-        self.message_init.send_message(0, 'Mensaje de prueba')
         for node in self.nodes:
             node.start()
 
         for node in self.nodes:
             node.join()
-        self.nodes[0].receive_message()
 
     def make_maplist():
         pass
 
     def close_node(self):
+        self.nodes[0].tube_clean()
         for node in self.nodes:
             node.close_connection()
 

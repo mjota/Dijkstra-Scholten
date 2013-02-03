@@ -19,18 +19,46 @@
 #==============================================================================
 #
 
-import multiprocessing
-import beanstalkc
-import re
-import time
 import nodo
 
 
 class EnvironmentNode(nodo.Nodo):
 
+    message = 'Test'
+
     def __init__(self, row, s):
-        super(nodo.Nodo, self).__init__(row, s)
+        nodo.Nodo.__init__(self, row, s)
 
     def send_message(self, dest, message):
         self.tubes[dest].put('M-' + self.name + '-' + message)
         self.outDeficit += 1
+
+    def run(self):
+        for n in range(0, 10):
+            self.message_init(self.message)
+            self.make_job(self.message)
+
+            while self.outDeficit > 0:
+                self.receive_message()
+
+            print('Fin ' + self.name)
+
+            self.worked = 1
+            self.completed = 0
+
+        for key in self.tubes.keys():
+            self.send_end(key)
+
+    def message_init(self, message):
+        for key in self.tubes.keys():
+            self.send_message(key, message)
+
+    def tube_clean(self):
+        for n in range(0, 15):
+            self.tuberesp.watch(str(n))
+            while True:
+                job = self.tuberesp.reserve(timeout=1)
+                if job is not None:
+                    job.delete()
+                else:
+                    break

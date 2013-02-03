@@ -37,6 +37,7 @@ class Nodo(multiprocessing.Process):
         self.name = str(s)
         self.worked = 1
         self.completed = 0
+        self.ended = 0
 
         self.inDeficitList = [0 for x in range(0, 15)]
         self.inDeficit = 0
@@ -54,17 +55,22 @@ class Nodo(multiprocessing.Process):
 
     def run(self):
         while True:
-            self.receive_message()
-            if self.completed:
-                break
-        print('Fin ' + self.name)
+            while True:
+                self.receive_message()
+                if self.completed or self.ended:
+                    break
+            print('Fin ' + self.name)
 
-        self.worked = 1
-        self.completed = 0
+            self.worked = 1
+            self.completed = 0
+
+            if self.ended:
+                break
 
     def make_job(self, message):
         #print(message)
-        time.sleep(1)
+        #time.sleep(1)
+        pass
 
     def send_message(self, dest, message):
         if(self.parent != -1 or self.name == '0'):
@@ -93,9 +99,13 @@ class Nodo(multiprocessing.Process):
 
             self.make_job(message)
             self.send_signal()
-        else:
+        elif typ == 'S':
             print('Signal de ' + sender + ' a ' + self.name)
             self.outDeficit -= 1
+        elif typ == 'E':
+            for key in self.tubes.keys():
+                self.send_end(key)
+            self.ended = 1
 
         job.delete()
 
@@ -121,6 +131,9 @@ class Nodo(multiprocessing.Process):
             self.inDeficit = 0
             self.parent = -1
             self.completed = 1
+
+    def send_end(self, dest):
+        self.tubes[dest].put('E--')
 
     def close_connection(self):
         self.tubeme.close()
