@@ -31,15 +31,19 @@ import pydot
 
 class main:
 
-    NLAUNCH = 10
+    NLAUNCH = 10    # Número de lanzamientos
 
     def __init__(self):
+        """Inicializa los nodos y las colas donde recibirá resultados"""
         self.nodes = []
         self.mes = multiprocessing.Queue()
         self.times = multiprocessing.Queue()
         self.parent = multiprocessing.Queue()
 
     def open_file(self):
+        """Abre el fichero .csv indicado en el primer argumento del terminal
+        Formato del fichero: el número de línea-1 marca el número de nodo
+        Separados por comas los nodos destino"""
         try:
             fileR = open(sys.argv[1], "r")
         except IOError:
@@ -49,74 +53,89 @@ class main:
         else:
             if re.match(".*(\.csv)$", sys.argv[1]):
                 self.fileC = csv.reader(fileR, delimiter=',')
-            elif re.match(".*(\.dot)$", sys.argv[1]):
-                print('Es dot')
-                #graph = pydot.graph_from_dot_file('somefile.dot')
             else:
                 print('Extensión de fichero no válida')
 
     def create_nodes(self):
-        s = 0
+        """Crea los nodos a partir del fichero CSV.
+        Primero crea el nodo entorno.
+        Les pasa las colas donde recibirá los resultados."""
         filecsv = [n for n in self.fileC]
         leng = filecsv.__len__()
+        numnode = 0
         for row in filecsv:
-            if s == 0:
-                self.nodes.append(environment_node.EnvironmentNode(row, leng, s, self.mes, self.times, self.parent, self.NLAUNCH))
+            if numnode == 0:
+                self.nodes.append(environment_node.EnvironmentNode(row, leng,
+                numnode, self.mes, self.times, self.parent, self.NLAUNCH))
             else:
-                self.nodes.append(nodo.Nodo(row, leng, s, self.mes, self.parent))
-            s += 1
+                self.nodes.append(nodo.Nodo(row, leng, numnode,
+                self.mes, self.parent))
+            numnode += 1
 
     def launch_nodes(self):
+        """Lanza los nodos en distintos procesos"""
         for node in self.nodes:
             node.start()
 
         for node in self.nodes:
             node.join()
 
-    def make_maplist():
-        pass
-
     def close_node(self):
+        """Limpia mensajes pendientes y cierra la conexión con beanstalk"""
         self.nodes[0].tube_clean()
         for node in self.nodes:
             node.close_connection()
 
     def show_results(self):
-        nmes = [0 for x in range(0, self.NLAUNCH)]
-        nsig = [0 for x in range(0, self.NLAUNCH)]
+        """Recoge los tiempos y el número de mensajes de las colas
+        Muestra en pantalla los resultados"""
+        nummes = [0 for x in range(0, self.NLAUNCH)]
+        numsig = [0 for x in range(0, self.NLAUNCH)]
         times = self.times.get()
 
+        #Recoge la cola de número de mensajes y los suma
         while not self.mes.empty():
             row = self.mes.get()
             n = 0
             for dup in row[0:self.NLAUNCH]:
-                nmes[n] += dup[0]
-                nsig[n] += dup[1]
+                nummes[n] += dup[0]
+                numsig[n] += dup[1]
                 n += 1
-        print('Número total mensajes trabajo: ' + str(nmes))
-        print('Número total mensajes signal: ' + str(nsig))
+
+        print('Número total mensajes trabajo: ' + str(nummes))
+        print('Número total mensajes signal: ' + str(numsig))
         print('Tiempos: ' + str(times))
-        self.writeCSV(nmes, nsig, times)
+
+        self.writeCSV(nummes, numsig, times)
 
     def writeCSV(self, nmes, nsig, times):
-        """Create CSV file"""
-        fileW = open('Result_' + sys.argv[1] + '.csv', 'w')
-        fileC = csv.writer(fileW)
-        fileC.writerow(['Test', 'Mensajes trabajos', 'Signals', 'Tiempo'])
+        """Crea un fichero CSV con los resultados obtenidos"""
+        filew = open('Result_' + sys.argv[1] + '.csv', 'w')
+        filec = csv.writer(filew)
+
+        filec.writerow(['Test', 'Mensajes trabajo', 'Signals', 'Tiempo'])
         for n in range(0, self.NLAUNCH):
-            fileC.writerow([n, nmes.pop(), nsig.pop(), times.pop()])
-        fileW.close()
-        print('Fichero CSV con resultados creado en Result_' + sys.argv[1] + '.csv')
+            filec.writerow([n, nmes.pop(), nsig.pop(), times.pop()])
+
+        filew.close()
+        print('Fichero CSV con resultados creado en Result_' +
+        sys.argv[1] + '.csv')
 
     def print_graph(self):
+        """Genera los grafos Spanning Tree recogidos de la cola de padres"""
         graphlist = []
+
         while not self.parent.empty():
             graphlist.append(self.parent.get())
         graph = pydot.Dot(graph_type='digraph')
+
+        #Añade vértices y aristas
         for n in range(0, self.NLAUNCH):
             for row in graphlist:
-                edge = pydot.Edge(str(n) + '.' + str(row[1][n]), str(n) + '.' + str(row[0]))
+                edge = pydot.Edge(str(n) + '.' + str(row[1][n]),
+                str(n) + '.' + str(row[0]))
                 graph.add_edge(edge)
+
         graph.write_png(sys.argv[1] + '.png')
         print('Spanning Tree creado en ' + sys.argv[1] + '.png')
 

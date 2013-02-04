@@ -30,82 +30,106 @@ class Nodo(multiprocessing.Process):
     ip = 'localhost'
     port = 11300
 
-    def __init__(self, row, leng, s, q, parents):
+    def __init__(self, tubes, leng, numnode, nummes, parents):
         multiprocessing.Process.__init__(self)
+
+        #Recoge id nodo, número total de nodos y colas
+        self.name = str(numnode)
         self.leng = leng
-        self.tubes = {}
-        self.name = str(s)
-        self.worked = 1
-        self.completed = 0
-        self.ended = 0
-        self.queue = q
+        self.nummes = nummes
         self.parents = parents
+
+        #Inicializa tuberías destino y lista de padres
+        self.tubes = {}
         self.lparents = []
-        self.sons = []
+
+        #Inicializa contadores de mensajes
         self.mes = 0
         self.sig = 0
 
+        #Inicializa variables de control de tareas realizadas
+        self.worked = 1
+        self.completed = 0
+        self.ended = 0
+
+        #Inicializa deficits
         self.inDeficitList = [0 for x in range(0, self.leng)]
         self.inDeficit = 0
         self.outDeficit = 0
         self.parent = -1
 
+        #Conecta tubería de recepción
         self.tubeme = beanstalkc.Connection(host=self.ip, port=self.port)
-        self.tubeme.watch(str(s))
+        self.tubeme.watch(str(numnode))
 
+        #Conecta tubería para signals
         self.tuberesp = beanstalkc.Connection(host=self.ip, port=self.port)
 
-        for n in row:
+        #Conecta con las tuberías de envío de mensajes
+        for n in tubes:
             self.tubes[int(n)] = beanstalkc.Connection(host=self.ip, port=self.port)
             self.tubes[int(n)].use(n)
 
     def run(self):
-        nmes = []
+        """Proceso de lanzamiento"""
+        nummes = []
+
+        #Repite hasta que recibe señal de finalización
         while True:
+            #Escucha hasta que completa todas las tareas
             while True:
                 self.receive_message()
                 if self.completed or self.ended:
                     break
-            #print('Fin ' + self.name)
 
-            nmes.append([self.mes, self.sig])
+            #Guarda la cantidad de mensajes enviados e inicializa
+            nummes.append([self.mes, self.sig])
             self.mes = 0
             self.sig = 0
 
+            #Inicializa variables de uso para siguiente recepción
             self.worked = 1
             self.completed = 0
-            self.sons = []
 
+            #Si recibe señal de finalización añade a las colas y sale
             if self.ended:
-                nmes.pop()
-                self.queue.put(nmes)
+                nummes.pop()
+                self.nummes.put(nummes)
                 self.parents.put([int(self.name), self.lparents])
                 break
 
     def make_job(self, message):
+        """Realiza tarea"""
         time.sleep(int(message))
 
     def send_message(self, dest, message):
-        if(self.parent != -1 or self.name == '0'):
+        """Si ya ha recibido algún mensaje lo envía y lo contabiliza"""
+        if(self.parent != -1):
             self.tubes[dest].put('M-' + self.name + '-' + message)
             self.outDeficit += 1
             self.mes += 1
 
     def receive_message(self):
-        job = self.tubeme.reserve(timeout=0.000001)
+        """Recibe mensajes, señales de trabajo realizado o finalización.
+        Si no tiene mensajes o señales intenta enviar finalización al padre"""
+        job = self.tubeme.reserve(timeout=0.001)
         if job is None:
-            self.send_signal(1)
+            self.send_signal()
             return
         typ, sender, message = re.split('-', job.body, 2)
-        if typ == 'M':
-            #print('Mensaje de ' + sender + ' para ' + self.name)
 
+        #Mensaje de trabajo
+        if typ == 'M':
+            #Guarda el padre si todavía no lo tenía
             if(self.parent == -1):
                 self.parent = int(sender)
                 self.lparents.append(self.parent)
+
+            #Añade uno a la lista de tareas
             self.inDeficit += 1
             self.inDeficitList[int(sender)] += 1
 
+            #Envía el mensaje a todos sus destinos si todavía no lo había hecho
             if self.worked:
                 for key in self.tubes.keys():
                     self.send_message(key, message)
@@ -113,12 +137,14 @@ class Nodo(multiprocessing.Process):
 
             self.make_job(message)
             self.send_signal()
+
+        #Señal de trabajo realizado
         elif typ == 'S':
-            #print('Signal de ' + sender + ' a ' + self.name)
-            if message == 'P':
-                self.sons.append(sender)
             self.outDeficit -= 1
+
+        #Señal de finalización de todas las tareas
         elif typ == 'E':
+            #Envía señal a sus destinos y finaliza
             for key in self.tubes.keys():
                 self.send_end(key)
             self.ended = 1
@@ -126,8 +152,12 @@ class Nodo(multiprocessing.Process):
         job.delete()
 
     def send_signal(self, *last):
-        if (self.inDeficit > 1 and not last):
+        """Envía señal de trabajo realizado"""
+        #Debe un signal a alguien más que el padre
+        if (self.inDeficit > 1):
             n = 0
+            #Recorre la lista de nodos con mensajes recibidos pendientes y
+            #envía un signal siempre que no sea el padre. Contabiliza el signal
             for e in self.inDeficitList:
                 if (e > 1 or (e == 1 and n != self.parent)):
                     break
@@ -137,23 +167,31 @@ class Nodo(multiprocessing.Process):
             self.tuberesp.put('S-' + self.name + '-')
             self.sig += 1
 
+            #Disminuye en uno el número de signals pendientes del nodo receptor
+            # y del cómputo general
             self.inDeficitList[n] -= 1
             self.inDeficit -= 1
 
+        #Todas las tareas completadas (hijas también), notificación al padre
         elif (self.inDeficit == 1 and self.outDeficit == 0):
             self.tuberesp.use(self.parent)
-            self.tuberesp.put('S-' + self.name + '-P')
+            self.tuberesp.put('S-' + self.name + '-')
             self.sig += 1
 
+            #Deja a 0 los pendientes al padre y del cómputo general
             self.inDeficitList[self.parent] = 0
             self.inDeficit = 0
+
+            #Libera el nodo padre y marca como completada
             self.parent = -1
             self.completed = 1
 
     def send_end(self, dest):
+        """Envía señal de finalización de todas la tareas"""
         self.tubes[dest].put('E--')
 
     def close_connection(self):
+        """Desconecta todas las conexiones con otros nodos"""
         self.tubeme.close()
         self.tuberesp.close()
         for bean in self.tubes.values():

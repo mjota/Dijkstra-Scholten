@@ -27,54 +27,65 @@ class EnvironmentNode(nodo.Nodo):
 
     message = '1'
 
-    def __init__(self, row, leng, s, q, times, parents, nlaunch):
-        nodo.Nodo.__init__(self, row, leng, s, q, parents)
+    def __init__(self, row, leng, numnode, nummes, times, parents, nlaunch):
+        """Inicializa el número de lanzamientos y la cola de tiempos"""
+        nodo.Nodo.__init__(self, row, leng, numnode, nummes, parents)
+
         self.times = times
         self.nlaunch = nlaunch
 
     def send_message(self, dest, message):
+        """Envía un mensaje y lo contabiliza"""
         self.tubes[dest].put('M-' + self.name + '-' + message)
+
         self.outDeficit += 1
         self.mes += 1
 
     def run(self):
+        """Proceso de lanzamiento"""
         times = []
-        nmes = []
+        nummes = []
+
+        #Lanza nlaunch mensajes
         for n in range(0, self.nlaunch):
             initime = time.time()
+
+            #Envía mensaje inicial
             self.message_init(self.message)
             self.make_job(self.message)
 
+            #Escucha hasta que todos sus hijos han terminado
             while self.outDeficit > 0:
                 self.receive_message()
 
+            #Captura la duración del proceso
             endtime = time.time()
             times.append(str("%.4f" % (endtime - initime)) + 's')
-            #print('Fin ' + self.name)
 
-            nmes.append([self.mes, self.sig])
+            #Guarda la cantidad de mensajes enviados e inicializa
+            nummes.append([self.mes, self.sig])
             self.mes = 0
             self.sig = 0
 
-            self.worked = 1
-            self.completed = 0
-            self.sons = []
-
+        #Envía señal de finalización
         for key in self.tubes.keys():
             self.send_end(key)
 
-        self.queue.put(nmes)
+        #Guarda el número de mensajes y los tiempos en las colas
+        self.nummes.put(nummes)
         self.times.put(times)
 
     def message_init(self, message):
+        """Envía mensaje inicial a sus hijos"""
         for key in self.tubes.keys():
             self.send_message(key, message)
 
     def tube_clean(self):
+        """Limpia mensajes de finalización perdidos"""
         for n in range(0, self.leng):
             self.tuberesp.watch(str(n))
             while True:
-                job = self.tuberesp.reserve(timeout=0.000001)
+                job = self.tuberesp.reserve(timeout=0.001)
                 if job is not None:
                     job.delete()
                 else:
