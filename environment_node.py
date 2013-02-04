@@ -27,9 +27,10 @@ class EnvironmentNode(nodo.Nodo):
 
     message = 'Test'
 
-    def __init__(self, row, s, q, times, parents):
+    def __init__(self, row, s, q, times, parents, nlaunch):
         nodo.Nodo.__init__(self, row, s, q, parents)
         self.times = times
+        self.nlaunch = nlaunch
 
     def send_message(self, dest, message):
         self.tubes[dest].put('M-' + self.name + '-' + message)
@@ -39,7 +40,7 @@ class EnvironmentNode(nodo.Nodo):
     def run(self):
         times = []
         nmes = []
-        for n in range(0, 3):
+        for n in range(0, self.nlaunch):
             initime = time.time()
             self.message_init(self.message)
             self.make_job(self.message)
@@ -48,7 +49,7 @@ class EnvironmentNode(nodo.Nodo):
                 self.receive_message()
 
             endtime = time.time()
-            times.append(str("%.2f" % (endtime - initime)) + 's')
+            times.append(str("%.4f" % (endtime - initime)) + 's')
             print('Fin ' + self.name)
 
             nmes.append([self.mes, self.sig])
@@ -57,6 +58,7 @@ class EnvironmentNode(nodo.Nodo):
 
             self.worked = 1
             self.completed = 0
+            self.sons = []
 
         for key in self.tubes.keys():
             self.send_end(key)
@@ -72,7 +74,7 @@ class EnvironmentNode(nodo.Nodo):
         for n in range(0, 15):
             self.tuberesp.watch(str(n))
             while True:
-                job = self.tuberesp.reserve(timeout=1)
+                job = self.tuberesp.reserve(timeout=0.1)
                 if job is not None:
                     job.delete()
                 else:

@@ -32,6 +32,8 @@ import pydot
 
 class main:
 
+    NLAUNCH = 10
+
     def __init__(self):
         self.nodes = []
         self.mes = multiprocessing.Queue()
@@ -58,7 +60,7 @@ class main:
         s = 0
         for row in self.fileC:
             if s == 0:
-                self.nodes.append(environment_node.EnvironmentNode(row, s, self.mes, self.times, self.parent))
+                self.nodes.append(environment_node.EnvironmentNode(row, s, self.mes, self.times, self.parent, self.NLAUNCH))
             else:
                 self.nodes.append(nodo.Nodo(row, s, self.mes, self.parent))
             s += 1
@@ -74,15 +76,18 @@ class main:
         pass
 
     def close_node(self):
-        self.nodes[0].tube_clean()
+        #self.nodes[0].tube_clean()
         for node in self.nodes:
             node.close_connection()
 
     def show_results(self):
-        nmes = [0 for x in range(0, 10)]
-        nsig = [0 for x in range(0, 10)]
+        nmes = [0 for x in range(0, self.NLAUNCH)]
+        nsig = [0 for x in range(0, self.NLAUNCH)]
+        times = self.times.get()
+
         while not self.mes.empty():
             row = self.mes.get()
+            print row
             n = 0
             for dup in row:
                 nmes[n] += dup[0]
@@ -90,19 +95,29 @@ class main:
                 n += 1
         print('Número total mensajes trabajo: ' + str(nmes))
         print('Número total mensajes signal: ' + str(nsig))
-        print('Tiempos: ' + str(self.times.get()))
+        print('Tiempos: ' + str(times))
+        self.writeCSV(nmes, nsig, times)
+
+    def writeCSV(self, nmes, nsig, times):
+        """Create CSV file"""
+        fileW = open('Result_' + sys.argv[1] + '.csv', 'w')
+        fileC = csv.writer(fileW)
+        fileC.writerow(['Test', 'Mensajes trabajos', 'Signals', 'Tiempo'])
+        for n in range(0, self.NLAUNCH):
+            fileC.writerow([n, nmes.pop(), nsig.pop(), times.pop()])
+        fileW.close()
 
     def print_graph(self):
         graphlist = []
         while not self.parent.empty():
             graphlist.append(self.parent.get())
-        for n in range(0, 3):
-            print('Grafo ' + str(n))
-            graph = pydot.Dot(graph_type='digraph')
+        graph = pydot.Dot(graph_type='digraph')
+        for n in range(0, self.NLAUNCH):
             for row in graphlist:
-                edge = pydot.Edge(str(row[1][n]), str(row[0]))
+                edge = pydot.Edge(str(n) + '.' + str(row[1][n]), str(n) + '.' + str(row[0]))
                 graph.add_edge(edge)
-            graph.write_png(str(n) + '.png')
+        graph.write_png(sys.argv[1] + '.png')
+        print('Spanning Tree creado en ' + sys.argv[1] + '.png')
 
 if __name__ == '__main__':
     main = main()

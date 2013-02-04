@@ -40,6 +40,7 @@ class Nodo(multiprocessing.Process):
         self.queue = q
         self.parents = parents
         self.lparents = []
+        self.sons = []
         self.mes = 0
         self.sig = 0
 
@@ -72,6 +73,7 @@ class Nodo(multiprocessing.Process):
 
             self.worked = 1
             self.completed = 0
+            self.sons = []
 
             if self.ended:
                 nmes.pop()
@@ -91,7 +93,7 @@ class Nodo(multiprocessing.Process):
             self.mes += 1
 
     def receive_message(self):
-        job = self.tubeme.reserve(timeout=1)
+        job = self.tubeme.reserve(timeout=0.1)
         if job is None:
             self.send_signal(1)
             return
@@ -114,9 +116,11 @@ class Nodo(multiprocessing.Process):
             self.send_signal()
         elif typ == 'S':
             #print('Signal de ' + sender + ' a ' + self.name)
+            if message == 'P':
+                self.sons.append(sender)
             self.outDeficit -= 1
         elif typ == 'E':
-            for key in self.tubes.keys():
+            for key in self.sons:
                 self.send_end(key)
             self.ended = 1
 
@@ -139,7 +143,7 @@ class Nodo(multiprocessing.Process):
 
         elif (self.inDeficit == 1 and self.outDeficit == 0):
             self.tuberesp.use(self.parent)
-            self.tuberesp.put('S-' + self.name + '-')
+            self.tuberesp.put('S-' + self.name + '-P')
             self.sig += 1
 
             self.inDeficitList[self.parent] = 0
