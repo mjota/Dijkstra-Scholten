@@ -48,7 +48,7 @@ class EnvironmentNode(nodo.Nodo):
                 self.receive_message()
 
             endtime = time.time()
-            times.append(endtime - initime)
+            times.append(str("%.2f" % (endtime - initime)) + 's')
             print('Fin ' + self.name)
 
             nmes.append([self.mes, self.sig])

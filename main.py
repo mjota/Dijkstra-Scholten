@@ -27,7 +27,7 @@ import sys
 import re
 import multiprocessing
 #import dot_parser
-#import pydot
+import pydot
 
 
 class main:
@@ -50,6 +50,7 @@ class main:
                 self.fileC = csv.reader(fileR, delimiter=',')
             elif re.match(".*(\.dot)$", sys.argv[1]):
                 print('Es dot')
+                #graph = pydot.graph_from_dot_file('somefile.dot')
             else:
                 print('Extensión de fichero no válida')
 
@@ -73,15 +74,35 @@ class main:
         pass
 
     def close_node(self):
-        while not self.mes.empty():
-            print self.mes.get()
-        while not self.times.empty():
-            print self.times.get()
-        while not self.parent.empty():
-            print self.parent.get()
         self.nodes[0].tube_clean()
         for node in self.nodes:
             node.close_connection()
+
+    def show_results(self):
+        nmes = [0 for x in range(0, 10)]
+        nsig = [0 for x in range(0, 10)]
+        while not self.mes.empty():
+            row = self.mes.get()
+            n = 0
+            for dup in row:
+                nmes[n] += dup[0]
+                nsig[n] += dup[1]
+                n += 1
+        print('Número total mensajes trabajo: ' + str(nmes))
+        print('Número total mensajes signal: ' + str(nsig))
+        print('Tiempos: ' + str(self.times.get()))
+
+    def print_graph(self):
+        graphlist = []
+        while not self.parent.empty():
+            graphlist.append(self.parent.get())
+        for n in range(0, 3):
+            print('Grafo ' + str(n))
+            graph = pydot.Dot(graph_type='digraph')
+            for row in graphlist:
+                edge = pydot.Edge(str(row[1][n]), str(row[0]))
+                graph.add_edge(edge)
+            graph.write_png(str(n) + '.png')
 
 if __name__ == '__main__':
     main = main()
@@ -89,6 +110,8 @@ if __name__ == '__main__':
     main.create_nodes()
     main.launch_nodes()
 
+    main.show_results()
+    main.print_graph()
     main.close_node()
 
 

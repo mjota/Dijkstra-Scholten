@@ -97,7 +97,7 @@ class Nodo(multiprocessing.Process):
             return
         typ, sender, message = re.split('-', job.body, 2)
         if typ == 'M':
-            print('Mensaje de ' + sender + ' para ' + self.name)
+            #print('Mensaje de ' + sender + ' para ' + self.name)
 
             if(self.parent == -1):
                 self.parent = int(sender)
@@ -113,7 +113,7 @@ class Nodo(multiprocessing.Process):
             self.make_job(message)
             self.send_signal()
         elif typ == 'S':
-            print('Signal de ' + sender + ' a ' + self.name)
+            #print('Signal de ' + sender + ' a ' + self.name)
             self.outDeficit -= 1
         elif typ == 'E':
             for key in self.tubes.keys():
