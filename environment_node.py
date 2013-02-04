@@ -25,10 +25,10 @@ import time
 
 class EnvironmentNode(nodo.Nodo):
 
-    message = 'Test'
+    message = '1'
 
-    def __init__(self, row, s, q, times, parents, nlaunch):
-        nodo.Nodo.__init__(self, row, s, q, parents)
+    def __init__(self, row, leng, s, q, times, parents, nlaunch):
+        nodo.Nodo.__init__(self, row, leng, s, q, parents)
         self.times = times
         self.nlaunch = nlaunch
 
@@ -50,7 +50,7 @@ class EnvironmentNode(nodo.Nodo):
 
             endtime = time.time()
             times.append(str("%.4f" % (endtime - initime)) + 's')
-            print('Fin ' + self.name)
+            #print('Fin ' + self.name)
 
             nmes.append([self.mes, self.sig])
             self.mes = 0
@@ -71,10 +71,10 @@ class EnvironmentNode(nodo.Nodo):
             self.send_message(key, message)
 
     def tube_clean(self):
-        for n in range(0, 15):
+        for n in range(0, self.leng):
             self.tuberesp.watch(str(n))
             while True:
-                job = self.tuberesp.reserve(timeout=0.1)
+                job = self.tuberesp.reserve(timeout=0.000001)
                 if job is not None:
                     job.delete()
                 else:

@@ -30,8 +30,9 @@ class Nodo(multiprocessing.Process):
     ip = 'localhost'
     port = 11300
 
-    def __init__(self, row, s, q, parents):
+    def __init__(self, row, leng, s, q, parents):
         multiprocessing.Process.__init__(self)
+        self.leng = leng
         self.tubes = {}
         self.name = str(s)
         self.worked = 1
@@ -44,7 +45,7 @@ class Nodo(multiprocessing.Process):
         self.mes = 0
         self.sig = 0
 
-        self.inDeficitList = [0 for x in range(0, 15)]
+        self.inDeficitList = [0 for x in range(0, self.leng)]
         self.inDeficit = 0
         self.outDeficit = 0
         self.parent = -1
@@ -65,7 +66,7 @@ class Nodo(multiprocessing.Process):
                 self.receive_message()
                 if self.completed or self.ended:
                     break
-            print('Fin ' + self.name)
+            #print('Fin ' + self.name)
 
             nmes.append([self.mes, self.sig])
             self.mes = 0
@@ -82,9 +83,7 @@ class Nodo(multiprocessing.Process):
                 break
 
     def make_job(self, message):
-        #print(message)
-        #time.sleep(1)
-        pass
+        time.sleep(int(message))
 
     def send_message(self, dest, message):
         if(self.parent != -1 or self.name == '0'):
@@ -93,7 +92,7 @@ class Nodo(multiprocessing.Process):
             self.mes += 1
 
     def receive_message(self):
-        job = self.tubeme.reserve(timeout=0.1)
+        job = self.tubeme.reserve(timeout=0.000001)
         if job is None:
             self.send_signal(1)
             return
@@ -120,7 +119,7 @@ class Nodo(multiprocessing.Process):
                 self.sons.append(sender)
             self.outDeficit -= 1
         elif typ == 'E':
-            for key in self.sons:
+            for key in self.tubes.keys():
                 self.send_end(key)
             self.ended = 1
 

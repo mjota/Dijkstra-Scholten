@@ -26,7 +26,6 @@ import csv
 import sys
 import re
 import multiprocessing
-#import dot_parser
 import pydot
 
 
@@ -58,11 +57,13 @@ class main:
 
     def create_nodes(self):
         s = 0
-        for row in self.fileC:
+        filecsv = [n for n in self.fileC]
+        leng = filecsv.__len__()
+        for row in filecsv:
             if s == 0:
-                self.nodes.append(environment_node.EnvironmentNode(row, s, self.mes, self.times, self.parent, self.NLAUNCH))
+                self.nodes.append(environment_node.EnvironmentNode(row, leng, s, self.mes, self.times, self.parent, self.NLAUNCH))
             else:
-                self.nodes.append(nodo.Nodo(row, s, self.mes, self.parent))
+                self.nodes.append(nodo.Nodo(row, leng, s, self.mes, self.parent))
             s += 1
 
     def launch_nodes(self):
@@ -76,7 +77,7 @@ class main:
         pass
 
     def close_node(self):
-        #self.nodes[0].tube_clean()
+        self.nodes[0].tube_clean()
         for node in self.nodes:
             node.close_connection()
 
@@ -87,9 +88,8 @@ class main:
 
         while not self.mes.empty():
             row = self.mes.get()
-            print row
             n = 0
-            for dup in row:
+            for dup in row[0:self.NLAUNCH]:
                 nmes[n] += dup[0]
                 nsig[n] += dup[1]
                 n += 1
@@ -106,6 +106,7 @@ class main:
         for n in range(0, self.NLAUNCH):
             fileC.writerow([n, nmes.pop(), nsig.pop(), times.pop()])
         fileW.close()
+        print('Fichero CSV con resultados creado en Result_' + sys.argv[1] + '.csv')
 
     def print_graph(self):
         graphlist = []
@@ -124,9 +125,9 @@ if __name__ == '__main__':
     main.open_file()
     main.create_nodes()
     main.launch_nodes()
+    main.close_node()
 
     main.show_results()
     main.print_graph()
-    main.close_node()
 
 
