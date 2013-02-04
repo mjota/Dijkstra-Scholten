@@ -20,34 +20,49 @@
 #
 
 import nodo
+import time
 
 
 class EnvironmentNode(nodo.Nodo):
 
     message = 'Test'
 
-    def __init__(self, row, s):
-        nodo.Nodo.__init__(self, row, s)
+    def __init__(self, row, s, q, times, parents):
+        nodo.Nodo.__init__(self, row, s, q, parents)
+        self.times = times
 
     def send_message(self, dest, message):
         self.tubes[dest].put('M-' + self.name + '-' + message)
         self.outDeficit += 1
+        self.mes += 1
 
     def run(self):
-        for n in range(0, 10):
+        times = []
+        nmes = []
+        for n in range(0, 3):
+            initime = time.time()
             self.message_init(self.message)
             self.make_job(self.message)
 
             while self.outDeficit > 0:
                 self.receive_message()
 
+            endtime = time.time()
+            times.append(endtime - initime)
             print('Fin ' + self.name)
+
+            nmes.append([self.mes, self.sig])
+            self.mes = 0
+            self.sig = 0
 
             self.worked = 1
             self.completed = 0
 
         for key in self.tubes.keys():
             self.send_end(key)
+
+        self.queue.put(nmes)
+        self.times.put(times)
 
     def message_init(self, message):
         for key in self.tubes.keys():

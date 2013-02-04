@@ -29,15 +29,19 @@ class Nodo(multiprocessing.Process):
 
     ip = 'localhost'
     port = 11300
-    maplist = {}
 
-    def __init__(self, row, s):
+    def __init__(self, row, s, q, parents):
         multiprocessing.Process.__init__(self)
         self.tubes = {}
         self.name = str(s)
         self.worked = 1
         self.completed = 0
         self.ended = 0
+        self.queue = q
+        self.parents = parents
+        self.lparents = []
+        self.mes = 0
+        self.sig = 0
 
         self.inDeficitList = [0 for x in range(0, 15)]
         self.inDeficit = 0
@@ -54,6 +58,7 @@ class Nodo(multiprocessing.Process):
             self.tubes[int(n)].use(n)
 
     def run(self):
+        nmes = []
         while True:
             while True:
                 self.receive_message()
@@ -61,10 +66,17 @@ class Nodo(multiprocessing.Process):
                     break
             print('Fin ' + self.name)
 
+            nmes.append([self.mes, self.sig])
+            self.mes = 0
+            self.sig = 0
+
             self.worked = 1
             self.completed = 0
 
             if self.ended:
+                nmes.pop()
+                self.queue.put(nmes)
+                self.parents.put([int(self.name), self.lparents])
                 break
 
     def make_job(self, message):
@@ -76,6 +88,7 @@ class Nodo(multiprocessing.Process):
         if(self.parent != -1 or self.name == '0'):
             self.tubes[dest].put('M-' + self.name + '-' + message)
             self.outDeficit += 1
+            self.mes += 1
 
     def receive_message(self):
         job = self.tubeme.reserve(timeout=1)
@@ -88,7 +101,7 @@ class Nodo(multiprocessing.Process):
 
             if(self.parent == -1):
                 self.parent = int(sender)
-                self.maplist[int(self.name)] = self.parent
+                self.lparents.append(self.parent)
             self.inDeficit += 1
             self.inDeficitList[int(sender)] += 1
 
@@ -119,6 +132,7 @@ class Nodo(multiprocessing.Process):
 
             self.tuberesp.use(n)
             self.tuberesp.put('S-' + self.name + '-')
+            self.sig += 1
 
             self.inDeficitList[n] -= 1
             self.inDeficit -= 1
@@ -126,6 +140,7 @@ class Nodo(multiprocessing.Process):
         elif (self.inDeficit == 1 and self.outDeficit == 0):
             self.tuberesp.use(self.parent)
             self.tuberesp.put('S-' + self.name + '-')
+            self.sig += 1
 
             self.inDeficitList[self.parent] = 0
             self.inDeficit = 0

@@ -25,6 +25,7 @@ import environment_node
 import csv
 import sys
 import re
+import multiprocessing
 #import dot_parser
 #import pydot
 
@@ -33,6 +34,9 @@ class main:
 
     def __init__(self):
         self.nodes = []
+        self.mes = multiprocessing.Queue()
+        self.times = multiprocessing.Queue()
+        self.parent = multiprocessing.Queue()
 
     def open_file(self):
         try:
@@ -53,9 +57,9 @@ class main:
         s = 0
         for row in self.fileC:
             if s == 0:
-                self.nodes.append(environment_node.EnvironmentNode(row, s))
+                self.nodes.append(environment_node.EnvironmentNode(row, s, self.mes, self.times, self.parent))
             else:
-                self.nodes.append(nodo.Nodo(row, s))
+                self.nodes.append(nodo.Nodo(row, s, self.mes, self.parent))
             s += 1
 
     def launch_nodes(self):
@@ -69,6 +73,12 @@ class main:
         pass
 
     def close_node(self):
+        while not self.mes.empty():
+            print self.mes.get()
+        while not self.times.empty():
+            print self.times.get()
+        while not self.parent.empty():
+            print self.parent.get()
         self.nodes[0].tube_clean()
         for node in self.nodes:
             node.close_connection()
