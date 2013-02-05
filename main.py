@@ -41,8 +41,9 @@ class main:
         self.parent = multiprocessing.Queue()
 
     def open_file(self):
-        """Abre el fichero .csv indicado en el primer argumento del terminal
-        Formato del fichero: el número de línea-1 marca el número de nodo
+        """Abre el fichero .csv o .dot indicado en el primer argumento del
+        terminal.
+        Formato del fichero CSV: el número de línea-1 marca el número de nodo
         Separados por comas los nodos destino"""
         try:
             fileR = open(sys.argv[1], "r")
@@ -51,19 +52,30 @@ class main:
         except:
             print("Introduce nombre de fichero")
         else:
+            #Se ha seleccionado un fichero CSV
             if re.match(".*(\.csv)$", sys.argv[1]):
-                self.fileC = csv.reader(fileR, delimiter=',')
+                fileC = csv.reader(fileR, delimiter=',')
+                filecsv = [n for n in fileC]
+                self.create_nodes(filecsv)
+
+            #Se ha seleccionado un fichero DOT
+            elif re.match(".*(\.dot)$", sys.argv[1]):
+                filedot = [[] for n in range(0, 15)]
+                graph = pydot.graph_from_dot_file(sys.argv[1])
+                res = graph.get_edges()
+                for n in res:
+                    filedot[int(n.get_source())].append(int(n.get_destination()))
+                self.create_nodes(filedot)
             else:
                 print('Extensión de fichero no válida')
 
-    def create_nodes(self):
-        """Crea los nodos a partir del fichero CSV.
+    def create_nodes(self, readable):
+        """Crea los nodos a partir del fichero CSV o DOT.
         Primero crea el nodo entorno.
         Les pasa las colas donde recibirá los resultados."""
-        filecsv = [n for n in self.fileC]
-        leng = filecsv.__len__()
+        leng = readable.__len__()
         numnode = 0
-        for row in filecsv:
+        for row in readable:
             if numnode == 0:
                 self.nodes.append(environment_node.EnvironmentNode(row, leng,
                 numnode, self.mes, self.times, self.parent, self.NLAUNCH))
@@ -142,7 +154,6 @@ class main:
 if __name__ == '__main__':
     main = main()
     main.open_file()
-    main.create_nodes()
     main.launch_nodes()
     main.close_node()
 
